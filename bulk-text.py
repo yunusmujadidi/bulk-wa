@@ -3,6 +3,9 @@ import openpyxl
 import time
 import logging
 import re
+import csv
+import os
+from datetime import datetime, date
 
 # Configure logging
 logging.basicConfig(filename='bulk_send_text.log', level=logging.INFO,
@@ -26,12 +29,44 @@ def format_indonesian_number(phone_number):
     
     return formatted_number
 
+def load_sent_numbers():
+    sent_numbers = set()
+    if os.path.exists('sent_numbers.csv'):
+        with open('sent_numbers.csv', 'r') as f:
+            reader = csv.reader(f)
+            sent_numbers = set(row[0] for row in reader)
+    return sent_numbers
+
+def save_sent_number(phone_number):
+    with open('sent_numbers.csv', 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([phone_number])
+
+def load_daily_count():
+    if os.path.exists('daily_count.csv'):
+        with open('daily_count.csv', 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if row:
+                    last_date, count = row
+                    if last_date == str(date.today()):
+                        return int(count)
+    return 0
+
+def save_daily_count(count):
+    with open('daily_count.csv', 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([str(date.today()), count])
+
 # Load the XLSX file
 workbook = openpyxl.load_workbook('phone_numbers.xlsx')
 sheet = workbook.active
 
 # Read phone numbers from the XLSX file and format them
-phone_numbers = [format_indonesian_number(cell.value) for cell in sheet['A'] if cell.value]
+phone_numbers = [format_indonesian_number(cell.value) for cell in sheet['A'][1:] if cell.value]
+
+# Load already sent numbers
+sent_numbers = load_sent_numbers()
 
 # Promotional message
 message = """Hello! We are excited to share our latest products with you.
@@ -46,11 +81,22 @@ success_count = 0
 
 start_time = time.time()
 
+daily_count = load_daily_count()
+daily_limit = 1000
+
 for index, phone_number in enumerate(phone_numbers, start=1):
+    if daily_count >= daily_limit:
+        logging.info(f"Daily limit of {daily_limit} messages reached. Stopping for today.")
+        break
+
+    if phone_number in sent_numbers:
+        logging.info(f"Skipping {phone_number} as it was already sent")
+        continue
+
     try:
         # Send text message
         message_start_time = time.time()
-        pywhatkit.sendwhatmsg_instantly(phone_number, message, 15, True, 3)
+        pywhatkit.sendwhatmsg_instantly(phone_number, message, 10, True, 2)
         message_end_time = time.time()
         
         # Calculate time taken for each message
@@ -60,12 +106,24 @@ for index, phone_number in enumerate(phone_numbers, start=1):
         logging.info(f"Time taken for message {index}: {time_taken:.2f} seconds")
         
         success_count += 1
+        daily_count += 1
+        
+        # Save the sent number and update daily count
+        save_sent_number(phone_number)
+        save_daily_count(daily_count)
         
         # Delay between messages to avoid getting banned
         time.sleep(5)  # Reduced delay for text-only messages
         
     except Exception as e:
         logging.error(f"Failed to send text message to {phone_number}. Error: {str(e)}")
+
+    # Check if we should pause and continue later
+    if index % 100 == 0:
+        user_input = input(f"Sent {index} messages. Continue? (y/n): ")
+        if user_input.lower() != 'y':
+            logging.info(f"Paused after sending {index} messages")
+            break
 
 end_time = time.time()
 total_time = end_time - start_time

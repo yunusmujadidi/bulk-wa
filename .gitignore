@@ -3,6 +3,7 @@
 
 # Ignore log files
 *.log
+*.csv
 
 # Ignore PyWhatKit database file
 PyWhatKit_DB.txt
