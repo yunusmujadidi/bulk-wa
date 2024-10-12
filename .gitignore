@@ -26,4 +26,6 @@ Thumbs.db
 
 # Additional files to ignore
 create-xlsx.py
-test.png
+test.mp4
+*.png
+*.mp4
