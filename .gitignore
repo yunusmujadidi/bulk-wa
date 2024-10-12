@@ -1,0 +1,28 @@
+# Ignore Excel files
+*.xlsx
+
+# Ignore log files
+*.log
+
+# Ignore PyWhatKit database file
+PyWhatKit_DB.txt
+
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environment
+venv/
+env/
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Additional files to ignore
+create-xlsx.py
+The Ritz Carlton Maldives.png
